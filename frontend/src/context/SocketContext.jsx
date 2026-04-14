@@ -12,7 +12,7 @@ export function SocketProvider({ children }) {
   const userRole = useSelector((state) => state.auth.user?.role);
 
   useEffect(() => {
-    const s = io(API_ORIGIN || 'http://localhost:5000', {
+       const s = io(API_ORIGIN || 'https://sigmora.onrender.com', {
       auth: token ? { token } : {},
       withCredentials: true,
     });
