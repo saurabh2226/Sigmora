@@ -21,9 +21,9 @@ services:
 
       # Frontend / CORS
       - key: CLIENT_URL
-        value: http://localhost:5173
+        value: https://sigmora-theta.vercel.app
       - key: CLIENT_URLS
-        value: http://localhost:5173
+        value: https://sigmora-theta.vercel.app
       - key: ALLOW_VERCEL_PREVIEWS
         value: "true"
       - key: ALLOW_LOCALHOST_ORIGINS
@@ -125,7 +125,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         value: 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
       - key: GOOGLE_CALLBACK_URL
-        value: http://localhost:5000/api/v1/auth/google/callback
+        value: https://sigmora.onrender.com/api/v1/auth/google/callback
 
       # Booking
       - key: BOOKING_HOLD_MINUTES
