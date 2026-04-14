@@ -56,12 +56,16 @@ export default function RegisterPage() {
   }, [form.password]);
 
   const handleChange = (name, value) => {
-    setForm(prev => ({ ...prev, [name]: value }));
+    const nextValue = name === 'phone'
+      ? String(value).replace(/\D/g, '').slice(0, 10)
+      : value;
+
+    setForm(prev => ({ ...prev, [name]: nextValue }));
     if (submitError) setSubmitError('');
-    if (touched[name]) setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
+    if (touched[name]) setErrors(prev => ({ ...prev, [name]: validateField(name, nextValue) }));
     // Re-validate confirm password when password changes
     if (name === 'password' && touched.confirmPassword) {
-      setErrors(prev => ({ ...prev, confirmPassword: form.confirmPassword && form.confirmPassword !== value ? 'Passwords do not match' : '' }));
+      setErrors(prev => ({ ...prev, confirmPassword: form.confirmPassword && form.confirmPassword !== nextValue ? 'Passwords do not match' : '' }));
     }
   };
 
@@ -122,7 +126,10 @@ export default function RegisterPage() {
       <div className={styles.left}>
         <div className={styles.leftContent}>
           <span className={styles.leftLabel}>JOIN US</span>
-          <h1>Sig<span className={styles.accent}>mora</span></h1>
+          <div className={styles.brandLockup}>
+            <span className={styles.brandMark}>◐</span>
+            <h1>Sig<span className={styles.accent}>mora</span></h1>
+          </div>
           <p>Create your account and start exploring the best hotels across India.</p>
           <div className={styles.features}>
             <div className={styles.feature}><span>🎁</span> Exclusive member deals</div>
@@ -152,7 +159,7 @@ export default function RegisterPage() {
 
           <div className={getFieldClass('phone')}>
             <FiPhone className={styles.inputIcon} />
-            <input name="phone" type="tel" placeholder="Phone (optional)" value={form.phone} onChange={e => handleChange('phone', e.target.value)} onBlur={() => handleBlur('phone')} autoComplete="tel" />
+            <input name="phone" type="number" inputMode="numeric" placeholder="Phone (optional)" value={form.phone} onChange={e => handleChange('phone', e.target.value)} onBlur={() => handleBlur('phone')} autoComplete="tel" />
             {touched.phone && errors.phone && <span className={styles.fieldError}><FiAlertCircle size={12} /> {errors.phone}</span>}
           </div>
 

@@ -73,6 +73,11 @@ const bookingSchema = new mongoose.Schema(
       paidAt: Date,
       refundId: String,
       refundedAt: Date,
+      refundStatus: {
+        type: String,
+        enum: ['none', 'initiated', 'completed'],
+        default: 'none',
+      },
     },
     status: {
       type: String,

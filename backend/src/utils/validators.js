@@ -142,7 +142,7 @@ const createHotelValidation = [
     .trim()
     .notEmpty().withMessage('Title is required')
     .isLength({ min: 3, max: 100 }).withMessage('Title must be 3-100 characters')
-    .escape(),
+    .matches(/^[a-zA-Z0-9][a-zA-Z0-9\s,'.&()-]*$/).withMessage('Title contains unsupported characters'),
   body('description')
     .trim()
     .notEmpty().withMessage('Description is required')
@@ -150,18 +150,32 @@ const createHotelValidation = [
   body('type')
     .notEmpty().withMessage('Type is required')
     .isIn(['hotel', 'resort', 'villa', 'apartment', 'hostel', 'guesthouse']).withMessage('Invalid hotel type'),
-  body('address.street').optional().trim().isLength({ max: 200 }),
+  body('address.street')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 3, max: 200 }).withMessage('Street must be 3-200 characters'),
   body('address.city')
     .notEmpty().withMessage('City is required')
     .trim()
     .isLength({ min: 2, max: 100 }).withMessage('City must be 2-100 characters'),
   body('address.state')
     .notEmpty().withMessage('State is required')
-    .trim(),
+    .trim()
+    .isLength({ min: 2, max: 100 }).withMessage('State must be 2-100 characters'),
   body('address.zipCode')
-    .optional()
+    .optional({ checkFalsy: true })
     .matches(/^[1-9][0-9]{5}$/).withMessage('Invalid Indian PIN code'),
-  body('address.country').optional().default('India'),
+  body('address.country')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 100 }).withMessage('Country must be 2-100 characters')
+    .default('India'),
+  body('address.coordinates.lat')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: -90, max: 90 }).withMessage('Latitude must be between -90 and 90'),
+  body('address.coordinates.lng')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180'),
   body('pricePerNight')
     .notEmpty().withMessage('Price per night is required')
     .isFloat({ min: 100, max: 500000 }).withMessage('Price must be between ₹100 and ₹5,00,000'),
@@ -176,7 +190,11 @@ const createHotelValidation = [
     .isArray().withMessage('Amenities must be an array'),
   body('amenities.*')
     .optional()
-    .isString().withMessage('Each amenity must be a string'),
+    .isIn([
+      'wifi', 'parking', 'pool', 'gym', 'spa', 'restaurant',
+      'bar', 'room-service', 'laundry', 'ac', 'tv', 'breakfast',
+      'pet-friendly', 'ev-charging', 'business-center', 'concierge',
+    ]).withMessage('Invalid amenity selected'),
 ];
 
 const createRoomValidation = [
@@ -200,6 +218,9 @@ const createRoomValidation = [
     .optional()
     .isIn(['single', 'double', 'queen', 'king', 'twin']).withMessage('Invalid bed type'),
   body('size')
+    .optional()
+    .isFloat({ min: 10, max: 10000 }).withMessage('Room size must be 10-10000 sq ft'),
+  body('roomSize')
     .optional()
     .isFloat({ min: 10, max: 10000 }).withMessage('Room size must be 10-10000 sq ft'),
 ];

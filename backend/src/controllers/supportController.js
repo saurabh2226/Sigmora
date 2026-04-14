@@ -1,4 +1,5 @@
 const Hotel = require('../models/Hotel');
+const User = require('../models/User');
 const SupportConversation = require('../models/SupportConversation');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -11,20 +12,18 @@ const { emitToUser } = require('../socket/socketHandler');
 
 const getSenderRole = (role) => {
   if (isAdminRole(role)) return 'admin';
-  if (isOwnerRole(role)) return 'owner';
   return 'user';
 };
 
 const getConversationQuery = (user) => {
   if (isAdminRole(user.role)) return {};
-  if (isOwnerRole(user.role)) return { owner: user._id };
   return { user: user._id };
 };
 
 const populateConversation = (query) => query
   .populate('hotel', 'title slug address.city images')
   .populate('user', 'name email avatar role')
-  .populate('owner', 'name email avatar role')
+  .populate('admin', 'name email avatar role')
   .populate('messages.sender', 'name email role avatar');
 
 const ensureConversationAccess = async (conversationId, user) => {
@@ -37,8 +36,7 @@ const ensureConversationAccess = async (conversationId, user) => {
   }
 
   const hasAccess = isAdminRole(user.role)
-    || conversation.user._id.toString() === user._id.toString()
-    || conversation.owner._id.toString() === user._id.toString();
+    || conversation.user._id.toString() === user._id.toString();
 
   if (!hasAccess) {
     throw new ApiError(403, 'You are not allowed to access this conversation');
@@ -58,11 +56,17 @@ const notifyConversationParticipants = async (conversation, sender, latestMessag
     });
   }
 
-  if (conversation.owner._id.toString() !== sender._id.toString()) {
-    recipients.push({
-      userId: conversation.owner._id,
-      title: `New support message for ${conversation.hotel.title}`,
-      message: latestMessage.text,
+  // Notify all admins when a user sends a message
+  if (!isAdminRole(sender.role)) {
+    const admins = await User.find({ role: 'admin', isActive: true }).select('_id').lean();
+    admins.forEach(({ _id }) => {
+      if (_id.toString() !== sender._id.toString()) {
+        recipients.push({
+          userId: _id,
+          title: `New support message for ${conversation.hotel?.title || 'a hotel'}`,
+          message: latestMessage.text,
+        });
+      }
     });
   }
 
@@ -85,27 +89,24 @@ const notifyConversationParticipants = async (conversation, sender, latestMessag
   });
 };
 
-const alertOwnerAboutGuestMessage = async (conversation, sender, latestMessage) => {
-  if (getSenderRole(sender.role) !== 'user' || !conversation?.owner?.email) {
-    return;
-  }
-
-  await sendSupportQueryAlertEmail({
-    owner: conversation.owner,
-    guest: conversation.user,
-    hotel: conversation.hotel,
-    latestMessage,
-    conversationId: conversation._id,
-    subject: conversation.subject,
-  });
+const alertAdminAboutGuestMessage = async (conversation, sender, latestMessage) => {
+  if (isAdminRole(sender.role)) return;
+  // Send email to all admins
+  const admins = await User.find({ role: 'admin', isActive: true }).select('name email').lean();
+  await Promise.all(admins.map((admin) =>
+    sendSupportQueryAlertEmail({
+      owner: admin,
+      guest: conversation.user,
+      hotel: conversation.hotel,
+      latestMessage,
+      conversationId: conversation._id,
+      subject: conversation.subject,
+    })
+  ));
 };
 
-const alertGuestAboutOwnerReply = async (conversation, sender, latestMessage) => {
-  const senderRole = getSenderRole(sender.role);
-  if (senderRole === 'user' || !conversation?.user?.email) {
-    return;
-  }
-
+const alertGuestAboutAdminReply = async (conversation, sender, latestMessage) => {
+  if (!isAdminRole(sender.role) || !conversation?.user?.email) return;
   await sendSupportReplyEmail({
     recipient: conversation.user,
     sender,
@@ -136,7 +137,7 @@ const getConversation = asyncHandler(async (req, res) => {
 // @desc    Create or reopen a support conversation
 // @route   POST /api/v1/support/conversations
 const createConversation = asyncHandler(async (req, res) => {
-  if (isOwnerRole(req.user.role)) {
+  if (isAdminRole(req.user.role)) {
     throw new ApiError(403, 'Only guests can start a fresh support chat');
   }
 
@@ -146,19 +147,20 @@ const createConversation = asyncHandler(async (req, res) => {
   if (!hotelId) throw new ApiError(400, 'Hotel is required');
   if (!trimmedMessage) throw new ApiError(400, 'Message is required');
 
-  const hotel = await Hotel.findById(hotelId).populate('createdBy', 'name email role');
+  const hotel = await Hotel.findById(hotelId);
   if (!hotel) {
     throw new ApiError(404, 'Hotel not found');
   }
 
-  if (!hotel.createdBy) {
-    throw new ApiError(400, 'This hotel is not assigned to an admin manager yet');
+  // Find any admin to assign as the conversation admin
+  const adminUser = await User.findOne({ role: 'admin', isActive: true }).select('_id name email').lean();
+  if (!adminUser) {
+    throw new ApiError(400, 'No admin available to handle support at this time');
   }
 
   let conversation = await SupportConversation.findOne({
     hotel: hotel._id,
     user: req.user._id,
-    owner: hotel.createdBy._id,
     status: 'open',
   });
 
@@ -172,7 +174,7 @@ const createConversation = asyncHandler(async (req, res) => {
     conversation = await SupportConversation.create({
       hotel: hotel._id,
       user: req.user._id,
-      owner: hotel.createdBy._id,
+      admin: adminUser._id,
       subject: subject?.trim() || `Questions about ${hotel.title}`,
       messages: [messagePayload],
       lastMessageAt: new Date(),
@@ -186,8 +188,7 @@ const createConversation = asyncHandler(async (req, res) => {
   const populatedConversation = await ensureConversationAccess(conversation._id, req.user);
   const latestMessage = populatedConversation.messages[populatedConversation.messages.length - 1];
   await notifyConversationParticipants(populatedConversation, req.user, latestMessage);
-  await alertOwnerAboutGuestMessage(populatedConversation, req.user, latestMessage);
-  await alertGuestAboutOwnerReply(populatedConversation, req.user, latestMessage);
+  await alertAdminAboutGuestMessage(populatedConversation, req.user, latestMessage);
 
   res.status(201).json(new ApiResponse(201, { conversation: populatedConversation }, 'Support conversation started'));
 });
@@ -213,8 +214,8 @@ const sendMessage = asyncHandler(async (req, res) => {
   const updatedConversation = await ensureConversationAccess(req.params.id, req.user);
   const latestMessage = updatedConversation.messages[updatedConversation.messages.length - 1];
   await notifyConversationParticipants(updatedConversation, req.user, latestMessage);
-  await alertOwnerAboutGuestMessage(updatedConversation, req.user, latestMessage);
-  await alertGuestAboutOwnerReply(updatedConversation, req.user, latestMessage);
+  await alertAdminAboutGuestMessage(updatedConversation, req.user, latestMessage);
+  await alertGuestAboutAdminReply(updatedConversation, req.user, latestMessage);
 
   res.status(200).json(new ApiResponse(200, { conversation: updatedConversation }, 'Message sent'));
 });

@@ -9,7 +9,7 @@ const supportMessageSchema = new mongoose.Schema(
     },
     senderRole: {
       type: String,
-      enum: ['user', 'owner', 'admin'],
+      enum: ['user', 'admin'],
       required: true,
     },
     text: {
@@ -38,10 +38,9 @@ const supportConversationSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    owner: {
+    admin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
     },
     subject: {
       type: String,
@@ -67,7 +66,7 @@ const supportConversationSchema = new mongoose.Schema(
 );
 
 supportConversationSchema.index({ user: 1, updatedAt: -1 });
-supportConversationSchema.index({ owner: 1, updatedAt: -1 });
+supportConversationSchema.index({ admin: 1, updatedAt: -1 });
 supportConversationSchema.index({ hotel: 1, status: 1 });
 
 module.exports = mongoose.model('SupportConversation', supportConversationSchema);

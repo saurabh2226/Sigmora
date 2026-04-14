@@ -59,6 +59,14 @@ export const fetchCurrentUser = createAsyncThunk('auth/me', async (_, { rejectWi
   } catch (err) { return rejectWithValue(getApiErrorMessage(err, 'Failed to fetch user')); }
 });
 
+export const updateProfile = createAsyncThunk('auth/updateProfile', async (profileData, { rejectWithValue }) => {
+  try {
+    const { data } = await authApi.updateProfile(profileData);
+    localStorage.setItem('user', JSON.stringify(data.data.user));
+    return data.data.user;
+  } catch (err) { return rejectWithValue(getApiErrorMessage(err, 'Failed to update profile')); }
+});
+
 export const logoutUser = createAsyncThunk('auth/logout', async () => {
   try {
     await authApi.logout();
@@ -132,14 +140,24 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.rejected, (s, a) => { s.loading = false; s.error = a.payload; })
       .addCase(fetchCurrentUser.pending, (s) => { s.loading = true; s.error = null; })
-      .addCase(fetchCurrentUser.fulfilled, (s, a) => { s.loading = false; s.user = a.payload; s.isAuthenticated = true; s.error = null; })
-      .addCase(fetchCurrentUser.rejected, (s, a) => {
+     .addCase(fetchCurrentUser.fulfilled, (s, a) => { s.loading = false; s.user = a.payload; s.isAuthenticated = true; s.error = null; })
+     .addCase(fetchCurrentUser.rejected, (s, a) => {
         s.loading = false;
         s.error = a.payload;
         s.user = null;
         s.accessToken = null;
         s.isAuthenticated = false;
         clearStoredSession();
+      })
+      .addCase(updateProfile.pending, (s) => { s.loading = true; s.error = null; })
+      .addCase(updateProfile.fulfilled, (s, a) => {
+        s.loading = false;
+        s.user = a.payload;
+        s.error = null;
+      })
+      .addCase(updateProfile.rejected, (s, a) => {
+        s.loading = false;
+        s.error = a.payload;
       })
       .addCase(logoutUser.fulfilled, (s) => { s.user = null; s.accessToken = null; s.isAuthenticated = false; s.error = null; });
   },

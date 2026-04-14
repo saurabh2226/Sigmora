@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { FiCalendar, FiMapPin, FiUser, FiSettings, FiXCircle } from 'react-icons/fi';
+import { FiCalendar, FiMapPin, FiSettings } from 'react-icons/fi';
 import { fetchMyBookings, cancelBooking } from '../redux/slices/bookingSlice';
+import { updateProfile } from '../redux/slices/authSlice';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { STATUS_COLORS } from '../utils/constants';
 import { getImageUrl } from '../utils/helpers';
 import Loader from '../components/common/Loader/Loader';
+import ConfirmDialog from '../components/common/ConfirmDialog/ConfirmDialog';
 import toast from 'react-hot-toast';
 
 export default function UserDashboardPage() {
@@ -14,17 +16,53 @@ export default function UserDashboardPage() {
   const { bookings, loading, pagination } = useSelector(s => s.bookings);
   const { user } = useSelector(s => s.auth);
   const [tab, setTab] = useState('all');
+  const [profileForm, setProfileForm] = useState({ name: '', phone: '', avatar: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState(null);
 
   useEffect(() => { dispatch(fetchMyBookings(tab === 'all' ? {} : { status: tab })); }, [dispatch, tab]);
+  useEffect(() => {
+    setProfileForm({
+      name: user?.name || '',
+      phone: user?.phone || '',
+      avatar: user?.avatar || '',
+    });
+  }, [user?.name, user?.phone, user?.avatar]);
 
-  const handleCancel = async (id) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-    const result = await dispatch(cancelBooking({ id }));
+  const handleCancel = async () => {
+    if (!cancelBookingTarget?._id) return;
+    const result = await dispatch(cancelBooking({ id: cancelBookingTarget._id }));
     if (result.meta.requestStatus === 'fulfilled') {
       const refundAmount = result.payload?.refundAmount || 0;
-      toast.success(refundAmount > 0 ? `Booking cancelled. Refund initiated for ${formatCurrency(refundAmount)}.` : 'Booking cancelled');
+      const refundStatus = result.payload?.refundStatus || result.payload?.booking?.payment?.refundStatus;
+      toast.success(refundAmount > 0 && refundStatus === 'initiated'
+        ? `Booking cancelled. Refund started for ${formatCurrency(refundAmount)}.`
+        : refundAmount > 0
+          ? `Booking cancelled. Refund updated for ${formatCurrency(refundAmount)}.`
+          : 'Booking cancelled');
     }
     else toast.error(result.payload || 'Failed to cancel');
+    setCancelBookingTarget(null);
+  };
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    try {
+      setSavingProfile(true);
+      const result = await dispatch(updateProfile({
+        name: profileForm.name.trim(),
+        phone: profileForm.phone.trim(),
+        avatar: profileForm.avatar.trim(),
+      }));
+
+      if (result.meta.requestStatus === 'fulfilled') {
+        toast.success('Profile updated successfully');
+      } else {
+        toast.error(result.payload || 'Failed to update profile');
+      }
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   return (
@@ -38,6 +76,42 @@ export default function UserDashboardPage() {
           <Link to="/support" style={{ padding: '10px 20px', background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', borderRadius: 'var(--radius-md)', fontWeight: 700 }}>Support Chat</Link>
           <Link to="/hotels" style={{ padding: '10px 24px', background: 'var(--gradient-primary)', color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 700 }}>Book New Stay</Link>
         </div>
+      </div>
+
+      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+          <FiSettings size={18} />
+          <div>
+            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>Update Profile</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>Keep your booking and receipt details current.</p>
+          </div>
+        </div>
+        <form onSubmit={handleProfileSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
+          <input
+            style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-container-low)', color: 'var(--color-text-primary)' }}
+            value={profileForm.name}
+            onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="Full name"
+          />
+          <input
+            style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-container-low)', color: 'var(--color-text-primary)' }}
+            value={profileForm.phone}
+            onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
+            placeholder="Phone number"
+            inputMode="numeric"
+          />
+          <input
+            style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-container-low)', color: 'var(--color-text-primary)' }}
+            value={profileForm.avatar}
+            onChange={(event) => setProfileForm((current) => ({ ...current, avatar: event.target.value }))}
+            placeholder="Avatar image URL"
+          />
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" disabled={savingProfile} style={{ padding: '10px 22px', background: 'var(--gradient-primary)', color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 700 }}>
+              {savingProfile ? 'Saving...' : 'Update Profile'}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Stats */}
@@ -89,18 +163,29 @@ export default function UserDashboardPage() {
                 ) : null}
                 {b.refundAmount > 0 ? (
                   <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)', fontWeight: 700 }}>
-                    Refund tracked: {formatCurrency(b.refundAmount)}
+                    Refund {b.payment?.refundStatus === 'initiated' ? 'started' : 'tracked'}: {formatCurrency(b.refundAmount)}
                   </p>
                 ) : null}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
                   <Link to={`/booking/confirmation/${b._id}`} style={{ padding: '6px 16px', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-md)' }}>View Details</Link>
-                  {b.status === 'pending' || b.status === 'confirmed' ? <button onClick={() => handleCancel(b._id)} style={{ padding: '6px 16px', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-md)' }}>Cancel</button> : null}
+                  {b.status === 'pending' || b.status === 'confirmed' ? <button onClick={() => setCancelBookingTarget(b)} style={{ padding: '6px 16px', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-md)' }}>Cancel</button> : null}
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+      <ConfirmDialog
+        isOpen={!!cancelBookingTarget}
+        title="Cancel this booking?"
+        description={cancelBookingTarget?.pricing?.totalPrice
+          ? `This will cancel your stay${cancelBookingTarget.hotel?.title ? ` at ${cancelBookingTarget.hotel.title}` : ''}. If a refund applies, Sigmora will start it automatically and you’ll see the status in booking details.`
+          : 'This will cancel your stay and release the room for other guests.'}
+        confirmLabel="Yes, cancel booking"
+        cancelLabel="Keep booking"
+        onConfirm={handleCancel}
+        onCancel={() => setCancelBookingTarget(null)}
+      />
     </div>
   );
 }

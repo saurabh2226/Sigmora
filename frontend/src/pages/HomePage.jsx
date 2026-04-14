@@ -264,8 +264,8 @@ export default function HomePage() {
 
   return (
     <div className="page">
-      <section className={styles.hero}>
-        <div className={styles.heroPattern} />
+      <br/>
+          <div className={styles.heroPattern} />
         <div className={`container ${styles.heroInner}`}>
           <div className={styles.heroCopy}>
             <h1>
@@ -360,7 +360,7 @@ export default function HomePage() {
             </div> */}
           </div>
         </div>
-      </section>
+      
 
       {offerItems.length > 0 && (
         <section className={styles.offerRailSection}>
@@ -399,7 +399,7 @@ export default function HomePage() {
           <div className={styles.destinationGrid}>
             {destinationCards.map((destination) => (
               <Link to={`/hotels?city=${destination.city}`} key={destination.city} className={styles.destinationCard}>
-                <img src={destination.image || DEST_IMAGES[destination.city] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900&q=80'} alt={destination.city} loading="lazy" />
+                <img src={DEST_IMAGES[destination.city] || destination.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900&q=80'} alt={destination.city} loading="lazy" />
                 <div className={styles.destinationOverlay}>
                   <strong>{destination.city}</strong>
                   <span>{destination.count ? `${destination.count} stays` : 'Explore stays'}</span>

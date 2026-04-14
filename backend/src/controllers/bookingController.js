@@ -24,7 +24,6 @@ const {
   sendBookingCancellationEmail,
   sendOwnerBookingAlertEmail,
 } = require('../services/emailService');
-const { processRazorpayRefund } = require('../services/paymentService');
 const { emitAvailabilityUpdate } = require('../socket/socketHandler');
 const { isAdminRole } = require('../middleware/roles');
 const { syncBookingToSql, syncCouponToSql } = require('../services/sqlMirrorService');
@@ -307,24 +306,19 @@ const cancelBooking = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Cannot cancel a booking with status: ${booking.status}`);
   }
 
-  let refundResult = null;
   const refundDecision = getRefundDecision(booking);
   let refundAmount = refundDecision.refundAmount;
 
   if (booking.status === 'pending' && isHoldActive(booking)) {
     await releaseRoomHoldForBooking(booking);
     booking.payment.status = 'failed';
+    booking.payment.refundStatus = 'none';
   } else if (booking.status === 'confirmed' && booking.payment.status === 'completed') {
     await releaseConfirmedInventoryForBooking(booking);
-
-    if (refundAmount > 0 && booking.payment.method === 'razorpay' && booking.payment.transactionId) {
-      refundResult = await processRazorpayRefund(booking.payment.transactionId, refundAmount);
-      booking.payment.refundId = refundResult.refundId;
-      booking.payment.refundedAt = new Date();
-      booking.payment.status = refundAmount < booking.pricing.totalPrice ? 'partial_refunded' : 'refunded';
-    }
+    booking.payment.refundStatus = refundAmount > 0 ? 'initiated' : 'none';
   } else if (booking.status === 'pending') {
     booking.payment.status = 'failed';
+    booking.payment.refundStatus = 'none';
   }
 
   booking.status = 'cancelled';
@@ -365,8 +359,8 @@ const cancelBooking = asyncHandler(async (req, res) => {
       booking,
       refundAmount,
       refundPolicy: refundDecision.summary,
-      refundResult,
-    }, 'Booking cancelled')
+      refundStatus: booking.payment?.refundStatus || 'none',
+    }, refundAmount > 0 ? 'Booking cancelled and refund initiated' : 'Booking cancelled')
   );
 });
 

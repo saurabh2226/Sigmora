@@ -1,5 +1,7 @@
 import api from './axiosInstance';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+import { PUBLIC_CONFIG } from '../utils/runtimeConfig';
+
+const API_URL = PUBLIC_CONFIG.apiUrl;
 
 export const register = (data) => api.post('/auth/register', data);
 export const login = (data) => api.post('/auth/login', data);

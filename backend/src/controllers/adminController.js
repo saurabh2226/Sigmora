@@ -8,7 +8,7 @@ const Coupon = require('../models/Coupon');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
-const { sendAdminCreatedCredentialsEmail } = require('../services/emailService');
+const { sendAdminCreatedCredentialsEmail, sendAccountStatusChangedEmail } = require('../services/emailService');
 const { syncUserToSql, syncCouponToSql, deactivateCouponInSql } = require('../services/sqlMirrorService');
 const { User: SqlUser, Hotel: SqlHotel, Booking: SqlBooking } = require('../models/sql');
 const { normalizeRole } = require('../middleware/roles');
@@ -339,6 +339,7 @@ const changeUserStatus = asyncHandler(async (req, res) => {
 
   if (!user) throw new ApiError(404, 'User not found');
   await syncUserToSql(user);
+  sendAccountStatusChangedEmail({ user, isActive }).catch(console.error);
 
   res.status(200).json(new ApiResponse(200, { user }, `User ${isActive ? 'activated' : 'deactivated'}`));
 });

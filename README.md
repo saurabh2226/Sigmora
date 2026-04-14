@@ -67,23 +67,35 @@ hotel-booking-app/
 ### Backend `.env`
 
 Create `backend/.env` based on `backend/.env.example`.
+For Render production setup, use `backend/.env.render.example` as the baseline.
 
 Required local essentials:
 
 ```env
 NODE_ENV=development
 PORT=5000
-FRONTEND_URL=http://localhost:5173
+TRUST_PROXY=false
+CLIENT_URL=http://localhost:5173
+CLIENT_URLS=
+ALLOW_VERCEL_PREVIEWS=false
+ALLOW_LOCALHOST_ORIGINS=true
+COOKIE_SAMESITE=lax
+COOKIE_SECURE=false
 
-MONGODB_URI=mongodb://localhost:27017/hotel-booking
+MONGODB_URI=mongodb://127.0.0.1:27018/hotel-booking
 
+# For managed MySQL you can set MYSQL_URI instead of host/port/user/password
+MYSQL_URI=
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
 MYSQL_USER=root
 MYSQL_PASSWORD=
 MYSQL_DATABASE=Sigmora_db
+MYSQL_SSL=false
+MYSQL_SSL_REJECT_UNAUTHORIZED=false
+MYSQL_SSL_CA=
 SQL_SCHEMA_SYNC=true
-SQL_SCHEMA_ALTER=true
+SQL_SCHEMA_ALTER=false
 
 JWT_ACCESS_SECRET=replace_with_secure_access_secret
 JWT_REFRESH_SECRET=replace_with_secure_refresh_secret
@@ -107,6 +119,7 @@ GOOGLE_CALLBACK_URL=http://localhost:5000/api/v1/auth/google/callback
 ### Frontend `.env`
 
 Create `frontend/.env` based on `frontend/.env.example`.
+For Vercel production env vars, use `frontend/.env.vercel.example`.
 
 ```env
 VITE_API_URL=http://localhost:5000/api/v1
@@ -121,8 +134,8 @@ VITE_GOOGLE_MAPS_KEY=your_google_maps_embed_api_key
 MongoDB:
 
 ```bash
-mkdir -p ~/data/db
-mongod --dbpath ~/data/db
+mkdir -p /tmp/sigmora-mongo
+mongod --dbpath /tmp/sigmora-mongo --port 27018 --bind_ip 127.0.0.1
 ```
 
 MySQL:
@@ -163,7 +176,7 @@ npm run dev:hybrid
 ```bash
 cd frontend
 npm install
-npm run dev -- --host 127.0.0.1
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
 App URLs:
@@ -214,6 +227,8 @@ k6 run load-tests/k6-config.js
 
 ## Docker
 
+### Local full-stack compose
+
 Create a root-level `.env` for Docker overrides if you want custom host ports, or use the defaults.
 
 ```env
@@ -257,10 +272,139 @@ Production-like compose:
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
-## Deployments
+### Docker image deployment with managed databases
 
-- Frontend can be deployed to Vercel or Netlify
-- Backend can be deployed to Render, Railway, or a container host
+This repo now supports a cleaner image-based deployment path for managed services like MongoDB Atlas and Aiven MySQL.
+
+1. Copy the template and fill it with your real values:
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+2. Build the production images locally:
+
+```bash
+docker build --target production -t ghcr.io/<your-github-user>/sigmora-backend:latest ./backend
+docker build --target production -t ghcr.io/<your-github-user>/sigmora-frontend:latest ./frontend
+```
+
+3. Push them to a registry:
+
+```bash
+docker login ghcr.io
+docker push ghcr.io/<your-github-user>/sigmora-backend:latest
+docker push ghcr.io/<your-github-user>/sigmora-frontend:latest
+```
+
+4. Start the app containers against Atlas/Aiven using the prebuilt images:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.managed.yml up -d
+docker compose --env-file .env.docker -f docker-compose.managed.yml ps
+```
+
+5. View logs if needed:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.managed.yml logs -f backend
+docker compose --env-file .env.docker -f docker-compose.managed.yml logs -f frontend
+docker compose --env-file .env.docker -f docker-compose.managed.yml logs -f redis
+```
+
+6. Optional demo seed using the backend image:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.managed.yml --profile demo-data run --rm seed
+```
+
+7. Stop the managed deployment:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.managed.yml down
+```
+
+Notes:
+- The frontend Docker image now reads `VITE_API_URL`, `VITE_RAZORPAY_KEY_ID`, and `VITE_GOOGLE_MAPS_KEY` at container startup, so the same image can be reused across environments.
+- The managed compose file intentionally skips MongoDB and MySQL containers because it is meant for Atlas/Aiven-style hosted databases.
+- GitHub Actions now publishes backend and frontend images to `ghcr.io/<repo-owner>/sigmora-backend` and `ghcr.io/<repo-owner>/sigmora-frontend` on pushes to `main`.
+
+## Recommended Production Deployment (Aiven + MongoDB + Render + Vercel)
+
+This repository is now prepared for the exact setup below:
+
+- MongoDB: MongoDB Atlas (or any managed MongoDB URI)
+- MySQL: Aiven MySQL with SSL
+- Backend: Render Web Service (`render.yaml` included)
+- Frontend: Vercel (`frontend/vercel.json` included for SPA rewrites)
+
+### 1. Provision managed databases
+
+MongoDB:
+- Create a MongoDB Atlas cluster.
+- Create a database user and IP/network rule for Render egress.
+- Copy a connection string into `MONGODB_URI`.
+
+Aiven MySQL:
+- Create an Aiven MySQL service and database (`Sigmora_db` or your preferred DB).
+- Copy host, port, username, password.
+- Download the Aiven CA certificate.
+- Use either:
+  - `MYSQL_URI=mysql://...` (recommended), or
+  - `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
+- Enable SSL:
+  - `MYSQL_SSL=true`
+  - `MYSQL_SSL_REJECT_UNAUTHORIZED=true`
+  - `MYSQL_SSL_CA=<certificate contents>` (or `MYSQL_SSL_CA_BASE64`, or `MYSQL_SSL_CA_PATH`)
+
+### 2. Deploy backend to Render
+
+Option A (recommended): Blueprint deploy from `render.yaml`.
+- In Render, create a new Blueprint and point it to this repo.
+- Confirm `rootDir=backend`, `buildCommand=npm ci`, `startCommand=npm start`.
+- `preDeployCommand` runs `SQL_SCHEMA_SYNC=true npm run db:sync:sql`.
+
+Important backend env vars on Render:
+- `NODE_ENV=production`
+- `TRUST_PROXY=true`
+- `SQL_SCHEMA_SYNC=false` (runtime; pre-deploy handles sync)
+- `CLIENT_URL=https://<your-vercel-production-domain>`
+- `CLIENT_URLS=https://<your-vercel-production-domain>,https://<your-custom-domain>`
+- `ALLOW_VERCEL_PREVIEWS=true` (optional but useful)
+- `ALLOW_LOCALHOST_ORIGINS=false`
+- `COOKIE_SAMESITE=none`
+- `COOKIE_SECURE=true`
+- `MONGODB_URI=<atlas-uri>`
+- `MYSQL_*` values from Aiven
+- JWT, Razorpay, Cloudinary, SMTP, Google OAuth credentials
+
+After deploy:
+- Health check should respond at `https://<render-service>.onrender.com/api/health`.
+- Set `GOOGLE_CALLBACK_URL=https://<render-service>.onrender.com/api/v1/auth/google/callback`.
+
+### 3. Deploy frontend to Vercel
+
+- Create a Vercel project with `frontend` as the root directory.
+- Build command: `npm run build` (auto-detected by Vercel for Vite).
+- Output directory: `dist` (auto-detected by Vercel for Vite).
+- `frontend/vercel.json` already includes SPA rewrites.
+
+Set frontend env vars in Vercel:
+
+```env
+VITE_API_URL=https://<render-service>.onrender.com/api/v1
+VITE_RAZORPAY_KEY_ID=<your_razorpay_key_id>
+VITE_GOOGLE_MAPS_KEY=<your_google_maps_key>
+```
+
+### 4. Final cross-service checks
+
+- From browser devtools, verify API calls go to Render URL and return 2xx/4xx (not CORS blocks).
+- Login once, then refresh page and verify session refresh works (cookie-based refresh token).
+- Verify Google login flow redirects:
+  - Frontend: `/auth/google/callback`
+  - Backend callback: `/api/v1/auth/google/callback`
+- Test one booking flow end-to-end with live credentials.
 
 ## Verification Snapshot
 

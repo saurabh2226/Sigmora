@@ -10,6 +10,7 @@ const hpp = require('hpp');
 const errorHandler = require('./middleware/errorHandler');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const ApiError = require('./utils/ApiError');
+const { isAllowedClientOrigin } = require('./config/client');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -26,29 +27,33 @@ const supportRoutes = require('./routes/supportRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
 const app = express();
-const configuredClientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-const localhostOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const shouldTrustProxy = () => {
+  if (process.env.TRUST_PROXY === undefined) {
+    return process.env.NODE_ENV === 'production';
+  }
+
+  return ['true', '1', 'yes', 'on'].includes(String(process.env.TRUST_PROXY).toLowerCase());
+};
+
+if (shouldTrustProxy()) {
+  app.set('trust proxy', 1);
+}
 
 // ====== SECURITY MIDDLEWARE ======
 app.use(helmet());
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) {
+    if (isAllowedClientOrigin(origin)) {
       callback(null, true);
       return;
     }
 
-    if (origin === configuredClientUrl || localhostOriginPattern.test(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error('CORS origin not allowed'));
+    callback(new Error(`CORS origin not allowed: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 // ====== BODY PARSERS ======

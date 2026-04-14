@@ -221,7 +221,7 @@ describe('AuthController', () => {
       await flushPromises();
 
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith('user123', { refreshToken: '' });
-      expect(res.clearCookie).toHaveBeenCalledWith('refreshToken');
+      expect(res.clearCookie).toHaveBeenCalledWith('refreshToken', expect.any(Object));
       expect(res.status).toHaveBeenCalledWith(200);
     });
   });
@@ -374,8 +374,8 @@ describe('AuthController', () => {
         googleId: 'google-sub-123',
       }));
       expect(res.cookie).toHaveBeenCalledWith('refreshToken', 'app_refresh_token', expect.any(Object));
-      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_state');
-      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_redirect');
+      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_state', expect.any(Object));
+      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_redirect', expect.any(Object));
       expect(res.redirect).toHaveBeenCalledWith(
         'http://localhost:5173/auth/google/callback?accessToken=app_access_token&redirect=%2Fdashboard'
       );
@@ -392,8 +392,8 @@ describe('AuthController', () => {
       googleCallback(req, res, next);
       await flushPromises();
 
-      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_state');
-      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_redirect');
+      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_state', expect.any(Object));
+      expect(res.clearCookie).toHaveBeenCalledWith('google_oauth_redirect', expect.any(Object));
       expect(res.redirect).toHaveBeenCalledWith(
         'http://localhost:5173/auth/google/callback?error=Invalid%20Google%20OAuth%20state'
       );

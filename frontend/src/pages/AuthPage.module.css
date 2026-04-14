@@ -52,6 +52,30 @@
   line-height: 1.0;
   letter-spacing: -0.03em;
 }
+
+.brandLockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.brandLockup h1 {
+  margin-bottom: 0;
+}
+
+.brandMark {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--color-text-primary);
+  font-size: 1.8rem;
+  font-weight: 800;
+}
 .accent {
   background: linear-gradient(135deg, #c0c1ff 0%, #e1e0ff 100%);
   -webkit-background-clip: text;

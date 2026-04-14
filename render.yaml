@@ -1,0 +1,134 @@
+services:
+  - type: web
+    name: hotel-booking-backend
+    runtime: node
+    rootDir: backend
+    plan: starter
+    autoDeploy: true
+
+    buildCommand: npm ci
+    preDeployCommand: SQL_SCHEMA_SYNC=true npm run db:sync:sql
+    startCommand: npm start
+
+    healthCheckPath: /api/health
+
+    envVars:
+      # Core
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
+
+      # Frontend / CORS
+      - key: CLIENT_URL
+        value: http://localhost:5173
+      - key: CLIENT_URLS
+        value: http://localhost:5173
+      - key: ALLOW_VERCEL_PREVIEWS
+        value: "true"
+      - key: ALLOW_LOCALHOST_ORIGINS
+        value: "false"
+
+      # Cookies
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: COOKIE_SECURE
+        value: "true"
+
+      # MongoDB
+      - key: MONGODB_URI
+        value: mongodb+srv://saurabhkumar_db_user:BpHvb3c62jZQqp.@cluster0.jjtgwzr.mongodb.net/hotel-booking?retryWrites=true&w=majority
+
+      # MySQL (Aiven)
+      - key: MYSQL_URI
+        value: mysql://avnadmin:avnadmin@mysql-1f9d6d41-sigmoidanalytics-33c4.e.aivencloud.com:16057/Sigmora_db
+      - key: MYSQL_HOST
+        value: mysql-1f9d6d41-sigmoidanalytics-33c4.e.aivencloud.com
+      - key: MYSQL_PORT
+        value: "16057"
+      - key: MYSQL_USER
+        value: avnadmin
+      - key: MYSQL_PASSWORD
+        value: avnadmin
+      - key: MYSQL_DATABASE
+        value: Sigmora_db
+
+      # TLS (Aiven)
+      - key: MYSQL_SSL
+        value: "true"
+      - key: MYSQL_SSL_REJECT_UNAUTHORIZED
+        value: "true"
+      - key: MYSQL_SSL_CA_BASE64
+        value: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVSRENDQXF5Z0F3SUJBZ0lVSld2T0x2cXVQaUNlWHhXQUorU1p1Vy9NMHFFd0RRWUpLb1pJaHZjTkFRRU0KQlFBd09qRTRNRFlHQTFVRUF3d3ZNelEwTURrNE1tVXRNREJsTmkwME5qZzNMV0ZqWVdFdE1HVmxNRE5tT1RCbApPRGd5SUZCeWIycGxZM1FnUTBFd0hoY05Nall3TkRFME1URTFOakkwV2hjTk16WXdOREV4TVRFMU5qSTBXakE2Ck1UZ3dOZ1lEVlFRRERDOHpORFF3T1RneVpTMHdNR1UyTFRRMk9EY3RZV05oWVMwd1pXVXdNMlk1TUdVNE9ESWcKVUhKdmFtVmpkQ0JEUVRDQ0FhSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnR1BBRENDQVlvQ2dnR0JBSmYyZFJBVQpDeUdaN2RlQnprZHRnUG1QazVYZkJlTmRkYTVMYWtHV2pmcUVKYmhqbGxFc25ZeW1XUjM4R2lLWkZub1FDWUNNCmNzNzFuUFQ2Q1BLWVJ2d3JxVC9NQm0zeUpPM0hmSHdUM25iTXdsTHNHZDlDaFI3MC9pT24vcXFDdkdaVnEwQWcKNm5vY0w3cGhtc0twU3ZlK0N4RlVZZm9YRHZOQzRscTRaSWZiNnY3VHRWYkJLc2p1bzhCbWFvTm5Udi9zVXV2cQpzYi9UK0NsOTBzcko1ekNFRnJ1T0pUVHUrYUxNVGRDQjByNkFyaWNlVWszN1FHa2lvYS9iWnBZTEhkdTVPRnNVCk92dnBuZjIzNHZIWUliK1Z0SW1aalBScW51bXIvWm9tTkh3UFBibnZzVVUwQVFnVksyQlhXQ1N5a0lkRkJYQmUKOHBFMWFRYzRiUFJORkFpM3JUbi9ZdUJkTUlmL3UvaVQ3TWV0T01hc2ZyWVJ6VWFKZXdIYjRwa29nYlJVYmdZRwpjbjB6NUo4WW5FNXBacnEyRXBEQTJiZnpsdjRjbnpJK1JUN0YrYTVNS1J1dW5kUWFsQmJhS3dSUCtuNGs4S3BwCmNkclU2Q0x6aHl2MGplUGdiaXBMZkVFbFNZRVBBL1RrM2h4MVV0UHl1WEFZRDA0VU9LNE5YZTExeFFJREFRQUIKbzBJd1FEQWRCZ05WSFE0RUZnUVV6ZUpDeHZENGZDY2k2Vk8zeWo1cldOd0xza1F3RWdZRFZSMFRBUUgvQkFndwpCZ0VCL3dJQkFEQUxCZ05WSFE4RUJBTUNBUVl3RFFZSktvWklodmNOQVFFTUJRQURnZ0dCQUllNVFhUCtYRjdRCitzSVdBNVk1bUtuRnVsNjdsVTB1cUc2bEFIQ0NzTzNSbXFWVHhoMSsyQUJ6QXljdm8zQXpmczM3QTgwUWRRVzUKeVluRlhvakgyRGxNZ1hEaVQ0RTg0OGpvTndrbjJqN2RvaXZLY2gwNTBoZlhydG80ajJBRDBwYkFxdUJVYkw1Zwp0MDE1WlI5Vk5SZGFVMnRVbXZubWlNaU0yUjhwNEVBd05qWisyaHNIMnlOMkpUcFlOdmhzVzRNOVc0eTV3THRZCkswamxHOEpFYk1GL2YxeEpRYTU4dXF5S0tVTDJ0WDNSYkM1dG5sNkRXakdLaWtZZFdoR2NtZThzRDhJaUlIVWkKbFFBcm9zd1pGUGRFMzFONEZFV3VEMllpcUREekRuQmd4VlQvR3BQRFVkc1lCN1o2Y1UrZTVwek4zR3d6eTdsKwp6aTc0d1dkb1NsckYySXR2bGpkTDhFUzNrWU5yUCs4cjRHclAvQjJYS2duaU44S0hVTngvQVRQZHZTMlhuOE1oCkRnLzZ2Y1NvakhnS2RVOVo4R0FzU1V3ZzBpeVhOT1dGUDFQNjNpdytpLzkvZ3EySmZiRHlkRXcyYzdOeXExNmoKZVhmTE1JdWs3bVNTYXNnMlZPMWVIRHpBQW5Hc1Z1OFIyS1psVVQwOENTcFFlWVhLR1EwblJ3PT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+
+      # SQL schema
+      - key: SQL_SCHEMA_SYNC
+        value: "false"
+      - key: SQL_SCHEMA_ALTER
+        value: "false"
+
+      # Redis
+      - key: REDIS_URL
+        value: ""
+      - key: REDIS_LOCK_TTL_MS
+        value: "15000"
+      - key: REDIS_LOCK_WAIT_MS
+        value: "5000"
+      - key: REDIS_LOCK_RETRY_MS
+        value: "120"
+
+      # JWT
+      - key: JWT_ACCESS_SECRET
+        value: hotel_booking_access_secret_dev_key_2024
+      - key: JWT_REFRESH_SECRET
+        value: hotel_booking_refresh_secret_dev_key_2024
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+      # Razorpay
+      - key: RAZORPAY_KEY_ID
+        value: rzp_test_SaCn5kK7c3lcoc
+      - key: RAZORPAY_KEY_SECRET
+        value: 5On9OBn4KajYZaOCbmeazitD
+      - key: RAZORPAY_WEBHOOK_SECRET
+        value: any_secret_for_webhook_testing
+
+      # Cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        value: Root
+      - key: CLOUDINARY_API_KEY
+        value: "149816288488527"
+      - key: CLOUDINARY_API_SECRET
+        value: O0z0Oyc8uMZROK3EKVnA-e1n6Ok
+
+      # Email
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_SECURE
+        value: "false"
+      - key: EMAIL_USER
+        value: noreply.sigmora@gmail.com
+      - key: EMAIL_PASS
+        value: ncwreskcvahaaopl
+      - key: EMAIL_REQUIRE_TLS
+        value: "false"
+      - key: EMAIL_FROM
+        value: noreply@hotelbooking.com
+
+      # Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        value: 808854241441-mttj7pp7fq4etd8gtrne9b99i9rejp7n.apps.googleusercontent.com
+      - key: GOOGLE_CLIENT_SECRET
+        value: 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
+      - key: GOOGLE_CALLBACK_URL
+        value: http://localhost:5000/api/v1/auth/google/callback
+
+      # Booking
+      - key: BOOKING_HOLD_MINUTES
+        value: "10"
+      - key: SEED_PENDING_HOLD_DAYS
+        value: "120"

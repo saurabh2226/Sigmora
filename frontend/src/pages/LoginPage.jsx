@@ -99,7 +99,10 @@ export default function LoginPage() {
       <div className={styles.left}>
         <div className={styles.leftContent}>
           <span className={styles.leftLabel}>WELCOME TO</span>
-          <h1>Sig<span className={styles.accent}>mora</span></h1>
+          <div className={styles.brandLockup}>
+            <span className={styles.brandMark}>◐</span>
+            <h1>Sig<span className={styles.accent}>mora</span></h1>
+          </div>
           <p>Book premium hotels across India with the best prices and verified properties.</p>
           <div className={styles.features}>
             <div className={styles.feature}><span>✨</span> 30,000+ Verified Hotels</div>

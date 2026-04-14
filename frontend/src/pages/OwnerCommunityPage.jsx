@@ -214,17 +214,19 @@ export default function OwnerCommunityPage() {
             </button>
           </form>
         </div>
+      </div>
 
-        <div className={styles.panelCard}>
-          <div className={styles.sectionHeader}>
-            <h2><FiFilter size={18} /> Filter discussions</h2>
-            <p>Focus on the category you need right now and quickly jump into a relevant thread.</p>
+      <div className={styles.layout}>
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <h2>Community threads</h2>
+            <span>{threads.length}</span>
           </div>
-          <form className={styles.filterForm} onSubmit={handleSearchSubmit}>
+          <form className={styles.filterFormCompact} onSubmit={handleSearchSubmit}>
             <input
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Search by title or topic"
+              placeholder="Search threads"
             />
             <select
               value={filters.category}
@@ -235,17 +237,8 @@ export default function OwnerCommunityPage() {
                 <option key={category} value={category}>{CATEGORY_LABELS[category] || category}</option>
               ))}
             </select>
-            <button type="submit" className={styles.secondaryBtn}>Apply</button>
+            <button type="submit" className={styles.secondaryBtn}><FiFilter size={14} /> Filter</button>
           </form>
-        </div>
-      </div>
-
-      <div className={styles.layout}>
-        <aside className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>
-            <h2>Community threads</h2>
-            <span>{threads.length}</span>
-          </div>
 
           {threads.length === 0 ? (
             <div className={styles.emptyState}>

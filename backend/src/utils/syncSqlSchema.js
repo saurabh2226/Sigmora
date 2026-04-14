@@ -6,7 +6,10 @@ const { connectSequelize } = require('../config/sequelize');
 
 const syncSqlSchema = async () => {
   try {
-    await connectSequelize({ syncSchema: true, alter: true });
+    await connectSequelize({
+      syncSchema: process.env.SQL_SCHEMA_SYNC !== 'false',
+      alter: process.env.SQL_SCHEMA_ALTER === 'true',
+    });
 
     console.log('\nSQL tables ready:');
     [User, Hotel, Room, Booking, Review, Coupon, Payment, Notification].forEach((model) => {

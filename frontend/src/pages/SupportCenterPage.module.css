@@ -51,6 +51,28 @@
   margin-bottom: var(--space-6);
 }
 
+.assistantOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(8px);
+}
+
+.assistantModal {
+  width: min(780px, 100%);
+  max-height: min(88vh, 860px);
+  overflow: auto;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-2xl);
+}
+
 .assistantHeader {
   margin-bottom: var(--space-4);
 }

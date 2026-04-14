@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const createTransporter = require('../config/email');
 const { getEmailTransportMode } = require('../config/email');
+const { getPrimaryClientUrl } = require('../config/client');
 
 const BRAND_NAME = 'Sigmora';
 const DEFAULT_FROM = 'noreply@sigmora.com';
@@ -16,7 +17,7 @@ const escapeHtml = (value = '') => String(value)
 
 const toDateText = (value) => new Date(value).toLocaleDateString('en-IN', { dateStyle: 'long' });
 
-const getClientUrl = () => process.env.CLIENT_URL || 'http://localhost:5173';
+const getClientUrl = () => getPrimaryClientUrl();
 
 const getMailIdentity = () => {
   const configuredFrom = (process.env.EMAIL_FROM || DEFAULT_FROM).trim();
@@ -470,6 +471,58 @@ const sendNewsletterSubscriptionEmail = async ({ email, name = 'traveler' }) => 
   });
 };
 
+const sendAccountStatusChangedEmail = async ({ user, isActive }) => {
+  if (!user?.email) {
+    return null;
+  }
+
+  return sendEmail({
+    to: user.email,
+    subject: isActive ? `${BRAND_NAME} account reactivated` : `${BRAND_NAME} account deactivated`,
+    html: `
+      <div style="font-family: 'Inter', sans-serif; max-width: 620px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="color: ${isActive ? '#0f766e' : '#ef4444'}; margin-bottom: 18px;">${isActive ? 'Your account is active again' : 'Your account has been deactivated'}</h1>
+        <p>Hi ${escapeHtml(user.name || 'there')},</p>
+        <p>${isActive
+          ? `Your ${BRAND_NAME} account has been reactivated and you can sign in again.`
+          : `An admin has deactivated your ${BRAND_NAME} account. If you believe this was a mistake, please contact support.`}
+        </p>
+        <a href="${getClientUrl()}/login" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #0f766e, #14b8a6); color: white; text-decoration: none; border-radius: 10px; font-weight: 600;">Open ${BRAND_NAME}</a>
+      </div>
+    `,
+  });
+};
+
+const sendHotelDeletedEmail = async ({ recipient, hotel, booking = null, roleLabel = 'guest' }) => {
+  if (!recipient?.email) {
+    return null;
+  }
+
+  const bookingContext = booking
+    ? `
+        <div style="background: #f8fafc; border-radius: 14px; padding: 18px 20px; margin: 20px 0; border: 1px solid #e2e8f0;">
+          <p style="margin: 0 0 8px;"><strong>Booking ID:</strong> ${escapeHtml(String(booking._id).slice(-8).toUpperCase())}</p>
+          <p style="margin: 0 0 8px;"><strong>Check-in:</strong> ${toDateText(booking.checkIn)}</p>
+          <p style="margin: 0;"><strong>Check-out:</strong> ${toDateText(booking.checkOut)}</p>
+        </div>
+      `
+    : '';
+
+  return sendEmail({
+    to: recipient.email,
+    subject: `${hotel.title} is no longer available on ${BRAND_NAME}`,
+    html: `
+      <div style="font-family: 'Inter', sans-serif; max-width: 620px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="color: #ef4444; margin-bottom: 18px;">Hotel listing removed</h1>
+        <p>Hi ${escapeHtml(recipient.name || 'there')},</p>
+        <p>The hotel <strong>${escapeHtml(hotel.title)}</strong> has been removed from the platform. We’re sharing this because you are linked to this property as a ${escapeHtml(roleLabel)}.</p>
+        ${bookingContext}
+        <a href="${getClientUrl()}/hotels" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #0f766e, #14b8a6); color: white; text-decoration: none; border-radius: 10px; font-weight: 600;">Browse other stays</a>
+      </div>
+    `,
+  });
+};
+
 module.exports = {
   EMAIL_AUDIT_LOG_PATH,
   sendEmail,
@@ -488,4 +541,6 @@ module.exports = {
   sendSupportReplyEmail,
   sendAdminCreatedCredentialsEmail,
   sendNewsletterSubscriptionEmail,
+  sendAccountStatusChangedEmail,
+  sendHotelDeletedEmail,
 };

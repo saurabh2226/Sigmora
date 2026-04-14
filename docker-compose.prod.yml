@@ -39,6 +39,10 @@ services:
         VITE_API_URL: ${PRODUCTION_API_URL:-https://hotelbooking.com/api/v1}
         VITE_RAZORPAY_KEY_ID: ${VITE_RAZORPAY_KEY_ID:-rzp_live_replace_me}
         VITE_GOOGLE_MAPS_KEY: ${VITE_GOOGLE_MAPS_KEY:-replace_me}
+    environment:
+      VITE_API_URL: ${PRODUCTION_API_URL:-https://hotelbooking.com/api/v1}
+      VITE_RAZORPAY_KEY_ID: ${VITE_RAZORPAY_KEY_ID:-rzp_live_replace_me}
+      VITE_GOOGLE_MAPS_KEY: ${VITE_GOOGLE_MAPS_KEY:-replace_me}
     restart: always
     deploy:
       resources:

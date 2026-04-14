@@ -28,6 +28,7 @@ export default function SupportCenterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState([
     {
       id: 'welcome',
@@ -211,42 +212,14 @@ export default function SupportCenterPage() {
       <section className={styles.assistantPanel}>
         <div className={styles.assistantHeader}>
           <div>
-            <h2>Sigmora AI Concierge</h2>
-            <p>Chat with the in-app assistant to get descriptive hotel suggestions, offer hints, and availability-oriented stay guidance pulled from the live database.</p>
+            <h2>Admin Support</h2>
+            <p>Use the support inbox below for hotel-linked conversations. If you want quick discovery help, open the Sigmora AI concierge when needed.</p>
           </div>
-        </div>
-
-        <div className={styles.assistantMessages}>
-          {assistantMessages.map((message) => (
-            <div key={message.id} className={`${styles.assistantBubble} ${message.role === 'user' ? styles.assistantUser : styles.assistantReply}`}>
-              <strong>{message.role === 'user' ? 'You' : 'Sigmora AI'}</strong>
-              <p>{message.text}</p>
-              {message.hotels?.length > 0 && (
-                <div className={styles.assistantHotelList}>
-                  {message.hotels.map((hotel) => (
-                    <Link key={hotel._id} to={`/hotels/${hotel.slug || hotel._id}`} className={styles.assistantHotelCard}>
-                      <strong>{hotel.title}</strong>
-                      <span>{hotel.address?.city}, {hotel.address?.state}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <form className={styles.assistantForm} onSubmit={handleAssistantSubmit}>
-          <textarea
-            rows={3}
-            value={assistantDraft}
-            onChange={(event) => setAssistantDraft(event.target.value)}
-            placeholder="Try: recommend a weekend stay in Udaipur under 5000 with pool and breakfast"
-          />
-          <button type="submit" className={styles.primaryBtn} disabled={assistantLoading}>
-            <FiSend size={14} />
-            {assistantLoading ? 'Thinking...' : 'Ask assistant'}
+          <button type="button" className={styles.primaryBtn} onClick={() => setShowAssistant(true)}>
+            <FiMessageCircle size={14} />
+            Open AI Assistant
           </button>
-        </form>
+        </div>
       </section>
 
       <div className={styles.layout}>
@@ -287,7 +260,7 @@ export default function SupportCenterPage() {
 
         <section className={styles.chatPanel}>
           {!selectedConversation ? (
-            hotelId && !isOwner ? (
+            hotelId && normalizedRole !== 'admin' ? (
               <div className={styles.panelCard}>
                 <h2>Start a support chat</h2>
                 <p>Reach out directly to the Sigmora admin team for {hotelTitle || 'this property'}.</p>
@@ -354,6 +327,51 @@ export default function SupportCenterPage() {
           )}
         </section>
       </div>
+      {showAssistant && (
+        <div className={styles.assistantOverlay} role="presentation" onClick={() => setShowAssistant(false)}>
+          <div className={styles.assistantModal} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className={styles.assistantHeader}>
+              <div>
+                <h2>Sigmora AI Concierge</h2>
+                <p>Ask for hotel suggestions, offers, amenities, and city-wise options pulled from the live database.</p>
+              </div>
+              <button type="button" className={styles.ghostBtn} onClick={() => setShowAssistant(false)}>Close</button>
+            </div>
+
+            <div className={styles.assistantMessages}>
+              {assistantMessages.map((message) => (
+                <div key={message.id} className={`${styles.assistantBubble} ${message.role === 'user' ? styles.assistantUser : styles.assistantReply}`}>
+                  <strong>{message.role === 'user' ? 'You' : 'Sigmora AI'}</strong>
+                  <p>{message.text}</p>
+                  {message.hotels?.length > 0 && (
+                    <div className={styles.assistantHotelList}>
+                      {message.hotels.map((hotel) => (
+                        <Link key={hotel._id} to={`/hotels/${hotel.slug || hotel._id}`} className={styles.assistantHotelCard} onClick={() => setShowAssistant(false)}>
+                          <strong>{hotel.title}</strong>
+                          <span>{hotel.address?.city}, {hotel.address?.state}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <form className={styles.assistantForm} onSubmit={handleAssistantSubmit}>
+              <textarea
+                rows={3}
+                value={assistantDraft}
+                onChange={(event) => setAssistantDraft(event.target.value)}
+                placeholder="Try: recommend a weekend stay in Udaipur under 5000 with pool and breakfast"
+              />
+              <button type="submit" className={styles.primaryBtn} disabled={assistantLoading}>
+                <FiSend size={14} />
+                {assistantLoading ? 'Thinking...' : 'Ask assistant'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

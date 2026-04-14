@@ -13,12 +13,12 @@ const { getOwnerBookings, updateBookingStatus } = require('../controllers/bookin
 
 router.use(auth);
 
-router.get('/dashboard', allowRoles('owner'), getOwnerDashboard);
-router.get('/bookings', allowRoles('owner'), getOwnerBookings);
-router.put('/bookings/:id/status', allowRoles('owner'), updateBookingStatus);
-router.get('/reports/monthly', allowRoles('owner'), getMonthlyBookingReport);
-router.get('/community', allowRoles('owner', 'admin', 'superadmin'), getCommunityThreads);
-router.post('/community', allowRoles('owner', 'admin', 'superadmin'), createCommunityThread);
-router.post('/community/:id/replies', allowRoles('owner', 'admin', 'superadmin'), replyToCommunityThread);
+router.get('/dashboard', allowRoles('admin'), getOwnerDashboard);
+router.get('/bookings', allowRoles('admin'), getOwnerBookings);
+router.put('/bookings/:id/status', allowRoles('admin'), updateBookingStatus);
+router.get('/reports/monthly', allowRoles('admin'), getMonthlyBookingReport);
+router.get('/community', allowRoles('admin'), getCommunityThreads);
+router.post('/community', allowRoles('admin'), createCommunityThread);
+router.post('/community/:id/replies', allowRoles('admin'), replyToCommunityThread);
 
 module.exports = router;

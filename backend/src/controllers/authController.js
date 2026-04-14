@@ -13,6 +13,13 @@ const {
 } = require('../services/emailService');
 const { syncUserToSql } = require('../services/sqlMirrorService');
 const { normalizeRole } = require('../middleware/roles');
+const { getPrimaryClientUrl } = require('../config/client');
+const {
+  getRefreshTokenCookieOptions,
+  getRefreshTokenClearCookieOptions,
+  getOAuthCookieOptions,
+  getOAuthClearCookieOptions,
+} = require('../config/cookies');
 
 const GOOGLE_AUTH_BASE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -45,7 +52,7 @@ const buildGoogleCallbackUrl = (req) => {
 };
 
 const getOAuthFrontendUrl = () => {
-  return process.env.CLIENT_URL || 'http://localhost:5173';
+  return getPrimaryClientUrl();
 };
 
 const buildGoogleFailureRedirect = (req, message = 'Google authentication failed') => {
@@ -54,12 +61,11 @@ const buildGoogleFailureRedirect = (req, message = 'Google authentication failed
 };
 
 const setRefreshCookie = (res, refreshToken) => {
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+};
+
+const clearRefreshCookie = (res) => {
+  res.clearCookie('refreshToken', getRefreshTokenClearCookieOptions());
 };
 
 const issueAuthResponse = async (user, res, statusCode, message) => {
@@ -254,7 +260,7 @@ const logout = asyncHandler(async (req, res) => {
   // Clear refresh token
   await User.findByIdAndUpdate(req.user._id, { refreshToken: '' });
 
-  res.clearCookie('refreshToken');
+  clearRefreshCookie(res);
 
   res.status(200).json(
     new ApiResponse(200, null, 'Logged out successfully')
@@ -544,19 +550,9 @@ const googleAuth = asyncHandler(async (req, res) => {
     ? req.query.redirect
     : '/';
 
-  res.cookie('google_oauth_state', state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 10 * 60 * 1000,
-  });
+  res.cookie('google_oauth_state', state, getOAuthCookieOptions());
 
-  res.cookie('google_oauth_redirect', redirectPath, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 10 * 60 * 1000,
-  });
+  res.cookie('google_oauth_redirect', redirectPath, getOAuthCookieOptions());
 
   const authUrl = new URL(GOOGLE_AUTH_BASE_URL);
   authUrl.search = new URLSearchParams({
@@ -581,8 +577,8 @@ const googleCallback = asyncHandler(async (req, res) => {
   } = req.query;
 
   const clearOAuthCookies = () => {
-    res.clearCookie('google_oauth_state');
-    res.clearCookie('google_oauth_redirect');
+    res.clearCookie('google_oauth_state', getOAuthClearCookieOptions());
+    res.clearCookie('google_oauth_redirect', getOAuthClearCookieOptions());
   };
 
   if (error) {

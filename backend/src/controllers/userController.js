@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { syncUserToSql } = require('../services/sqlMirrorService');
+const { getRefreshTokenClearCookieOptions } = require('../config/cookies');
 
 // @desc    Get user profile by ID
 // @route   GET /api/v1/users/:id
@@ -41,7 +42,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndUpdate(req.user._id, { isActive: false }, { new: true });
   await syncUserToSql(user);
 
-  res.clearCookie('refreshToken');
+  res.clearCookie('refreshToken', getRefreshTokenClearCookieOptions());
 
   res.status(200).json(new ApiResponse(200, null, 'Account deactivated successfully'));
 });

@@ -1,17 +1,48 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { FiUsers, FiHome, FiCalendar, FiDollarSign, FiTrendingUp } from 'react-icons/fi';
+import { FiUsers, FiHome, FiCalendar, FiDollarSign } from 'react-icons/fi';
 import { fetchDashboardStats } from '../redux/slices/adminSlice';
+import { updateProfile } from '../redux/slices/authSlice';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { STATUS_COLORS } from '../utils/constants';
 import Loader from '../components/common/Loader/Loader';
+import toast from 'react-hot-toast';
 
 export default function AdminDashboardPage() {
   const dispatch = useDispatch();
   const { stats, monthlyRevenue, recentBookings, loading } = useSelector(s => s.admin);
+  const { user } = useSelector(s => s.auth);
+  const [profileForm, setProfileForm] = useState({ name: '', phone: '', avatar: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
   useEffect(() => { dispatch(fetchDashboardStats()); }, [dispatch]);
+  useEffect(() => {
+    setProfileForm({
+      name: user?.name || '',
+      phone: user?.phone || '',
+      avatar: user?.avatar || '',
+    });
+  }, [user?.name, user?.phone, user?.avatar]);
   if (loading && !stats) return <Loader fullPage />;
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    try {
+      setSavingProfile(true);
+      const result = await dispatch(updateProfile({
+        name: profileForm.name.trim(),
+        phone: profileForm.phone.trim(),
+        avatar: profileForm.avatar.trim(),
+      }));
+
+      if (result.meta.requestStatus === 'fulfilled') {
+        toast.success('Admin profile updated');
+      } else {
+        toast.error(result.payload || 'Failed to update profile');
+      }
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const statCards = [
     { label: 'Total Users', value: stats?.totalUsers || 0, icon: <FiUsers />, color: '#6366f1' },
@@ -24,7 +55,7 @@ export default function AdminDashboardPage() {
     <div className="page container" style={{ paddingTop: 100 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-8)' }}>
         <div><h1 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 800 }}>Admin Dashboard</h1><p style={{ color: 'var(--color-text-muted)' }}>Overview of your platform</p></div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        {/* <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <Link to="/admin/community" style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Community</Link>
           <Link to="/admin/reports" style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Reports</Link>
           <Link to="/admin/hotels" style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Hotels</Link>
@@ -33,7 +64,7 @@ export default function AdminDashboardPage() {
           <Link to="/admin/reviews" style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Reviews</Link>
           <Link to="/admin/offers" style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Offers</Link>
           <Link to="/support" style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Support</Link>
-        </div>
+        </div> */}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
@@ -45,6 +76,39 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>Update Profile</h2>
+          <p style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>Keep your admin contact details current for platform alerts and support escalations.</p>
+        </div>
+        <form onSubmit={handleProfileSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
+          <input
+            style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-container-low)', color: 'var(--color-text-primary)' }}
+            value={profileForm.name}
+            onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="Full name"
+          />
+          <input
+            style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-container-low)', color: 'var(--color-text-primary)' }}
+            value={profileForm.phone}
+            onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
+            placeholder="Phone number"
+            inputMode="numeric"
+          />
+          <input
+            style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-container-low)', color: 'var(--color-text-primary)' }}
+            value={profileForm.avatar}
+            onChange={(event) => setProfileForm((current) => ({ ...current, avatar: event.target.value }))}
+            placeholder="Avatar image URL"
+          />
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" disabled={savingProfile} style={{ padding: '10px 22px', background: 'var(--gradient-primary)', color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 700 }}>
+              {savingProfile ? 'Saving...' : 'Update Profile'}
+            </button>
+          </div>
+        </form>
       </div>
 
       <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Recent Bookings</h2>

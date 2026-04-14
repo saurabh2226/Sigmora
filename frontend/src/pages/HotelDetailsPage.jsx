@@ -49,7 +49,7 @@ export default function HotelDetailsPage() {
 
   useEffect(() => {
     if (hotel?._id) {
-      dispatch(fetchHotelReviews({ hotelId: hotel._id, params: { limit: 12 } }));
+      dispatch(fetchHotelReviews({ hotelId: hotel._id, params: { limit: 12, sort: '-rating' } }));
     }
   }, [hotel?._id, dispatch]);
 
@@ -160,7 +160,14 @@ export default function HotelDetailsPage() {
   const firstAvailableRoom = roomCards.find((room) => room.liveAvailability?.available) || roomCards[0] || null;
   const sidebarPricing = firstAvailableRoom?.liveAvailability?.dynamicPricing || null;
   const displayedOffers = showAllOffers ? hotel.offers : hotel.offers?.slice(0, 3);
-  const visibleReviews = showAllReviews ? reviews : reviews?.slice(0, 3);
+  const rankedReviews = [...(reviews || [])].sort((left, right) => {
+    if ((right.rating || 0) !== (left.rating || 0)) {
+      return (right.rating || 0) - (left.rating || 0);
+    }
+
+    return new Date(right.createdAt) - new Date(left.createdAt);
+  });
+  const visibleReviews = showAllReviews ? rankedReviews : rankedReviews.slice(0, 3);
   const mapQuery = hotel.address?.coordinates?.lat && hotel.address?.coordinates?.lng
     ? `${hotel.address.coordinates.lat},${hotel.address.coordinates.lng}`
     : [hotel.title, hotel.address?.city, hotel.address?.state, hotel.address?.country].filter(Boolean).join(', ');
@@ -418,7 +425,7 @@ export default function HotelDetailsPage() {
                 </div>
               )}
               <div className={styles.reviewList}>
-                {visibleReviews?.map((r, index) => (
+                {visibleReviews?.length > 0 ? visibleReviews.map((r, index) => (
                   <div key={r._id} className={styles.reviewCard}>
                     <div className={styles.reviewHeader}>
                       <div className={styles.reviewAvatar}>{r.user?.name?.[0]}</div>
@@ -434,9 +441,20 @@ export default function HotelDetailsPage() {
                     {r.title && <h4>{r.title}</h4>}
                     <p>{r.comment}</p>
                   </div>
-                ))}
+                )) : (
+                  <div className={styles.reviewCard}>
+                    <div className={styles.reviewHeader}>
+                      <div className={styles.reviewAvatar}>S</div>
+                      <div>
+                        <strong>Sigmora</strong>
+                        <small>No guest reviews yet</small>
+                      </div>
+                    </div>
+                    <p>This hotel is live and ready for bookings. Reviews will appear here after completed stays.</p>
+                  </div>
+                )}
               </div>
-              {(reviews?.length || 0) > 3 && (
+              {rankedReviews.length > 3 && (
                 <div className={styles.reviewActions}>
                   <button type="button" className={styles.offerToggleBtn} onClick={() => setShowAllReviews((current) => !current)}>
                     {showAllReviews ? 'Show fewer reviews' : 'See all reviews'}

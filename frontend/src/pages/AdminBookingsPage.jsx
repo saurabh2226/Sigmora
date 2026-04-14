@@ -19,6 +19,7 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [busyBookingId, setBusyBookingId] = useState('');
   const [statusDrafts, setStatusDrafts] = useState({});
+  const [refundDialog, setRefundDialog] = useState({ open: false, booking: null, amount: '' });
 
   const loadBookings = async () => {
     try {
@@ -76,14 +77,28 @@ export default function AdminBookingsPage() {
 
   const handleRefund = async (booking) => {
     const suggestedAmount = booking.refundAmount || booking.pricing?.totalPrice || 0;
-    const input = window.prompt('Refund amount in INR', String(suggestedAmount));
-    if (!input) return;
+    setRefundDialog({
+      open: true,
+      booking,
+      amount: String(suggestedAmount),
+    });
+  };
+
+  const confirmRefund = async () => {
+    if (!refundDialog.booking) return;
+
+    const numericAmount = Number(refundDialog.amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      toast.error('Enter a valid refund amount');
+      return;
+    }
 
     try {
-      setBusyBookingId(booking._id);
-      await initiateRefund(booking._id, { amount: Number(input) });
+      setBusyBookingId(refundDialog.booking._id);
+      await initiateRefund(refundDialog.booking._id, { amount: numericAmount });
       toast.success('Refund initiated');
       await loadBookings();
+      setRefundDialog({ open: false, booking: null, amount: '' });
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to initiate refund');
     } finally {
@@ -164,6 +179,9 @@ export default function AdminBookingsPage() {
                     <td>
                       <strong>{formatCurrency(booking.pricing?.totalPrice || 0)}</strong>
                       <div className={styles.metaText}>Refundable {formatCurrency(booking.refundAmount || 0)}</div>
+                      {booking.payment?.refundStatus === 'initiated' && (
+                        <div className={styles.metaText}>Refund initiated, awaiting completion</div>
+                      )}
                     </td>
                     <td>
                       <span
@@ -200,27 +218,30 @@ export default function AdminBookingsPage() {
                         <select
                           className={styles.select}
                           value={statusDrafts[booking._id] || booking.status}
+                          disabled={booking.status === 'checked-out' || busyBookingId === booking._id}
                           onChange={(e) => setStatusDrafts((current) => ({ ...current, [booking._id]: e.target.value }))}
                         >
                           {BOOKING_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
                         </select>
                         <div className={styles.inlineActions}>
-                          <button
-                            type="button"
-                            className={styles.primaryBtn}
-                            disabled={busyBookingId === booking._id}
-                            onClick={() => handleStatusUpdate(booking._id)}
-                          >
-                            {busyBookingId === booking._id ? 'Saving...' : 'Save'}
-                          </button>
-                          {!isOwner && booking.payment?.status === 'completed' && (
+                          {booking.status !== 'checked-out' && (statusDrafts[booking._id] || booking.status) !== booking.status && (
+                            <button
+                              type="button"
+                              className={styles.primaryBtn}
+                              disabled={busyBookingId === booking._id}
+                              onClick={() => handleStatusUpdate(booking._id)}
+                            >
+                              {busyBookingId === booking._id ? 'Saving...' : 'Save'}
+                            </button>
+                          )}
+                          {booking.payment?.status === 'completed' && (
                             <button
                               type="button"
                               className={styles.secondaryBtn}
                               disabled={busyBookingId === booking._id}
                               onClick={() => handleRefund(booking)}
                             >
-                              Refund
+                              {booking.payment?.refundStatus === 'initiated' ? 'Complete refund' : 'Refund'}
                             </button>
                           )}
                         </div>
@@ -260,6 +281,30 @@ export default function AdminBookingsPage() {
           </button>
         </div>
       </div>
+      {refundDialog.open && (
+        <div className={styles.dialogOverlay} role="presentation" onClick={() => setRefundDialog({ open: false, booking: null, amount: '' })}>
+          <div className={styles.dialogCard} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm refund</h3>
+            <p>
+              Start a Razorpay refund for <strong>{refundDialog.booking?.hotel?.title}</strong>. This action will email the guest once the refund is initiated.
+            </p>
+            <label className={styles.label}>Refund amount (INR)</label>
+            <input
+              className={styles.input}
+              type="number"
+              min="1"
+              value={refundDialog.amount}
+              onChange={(event) => setRefundDialog((current) => ({ ...current, amount: event.target.value }))}
+            />
+            <div className={styles.inlineActions} style={{ justifyContent: 'flex-end', marginTop: 'var(--space-5)' }}>
+              <button type="button" className={styles.secondaryBtn} onClick={() => setRefundDialog({ open: false, booking: null, amount: '' })}>Cancel</button>
+              <button type="button" className={styles.primaryBtn} onClick={confirmRefund} disabled={busyBookingId === refundDialog.booking?._id}>
+                {busyBookingId === refundDialog.booking?._id ? 'Refunding...' : 'Confirm refund'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

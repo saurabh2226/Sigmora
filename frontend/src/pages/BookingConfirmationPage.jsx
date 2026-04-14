@@ -153,6 +153,7 @@ export default function BookingConfirmationPage() {
   const roomTitle = booking.room?.title || 'Selected room';
   const roomType = booking.room?.type ? `${booking.room.type.charAt(0).toUpperCase()}${booking.room.type.slice(1)}` : 'Room';
   const couponCode = booking.pricing?.couponCode || '';
+  const refundStatus = booking.payment?.refundStatus || (['partial_refunded', 'refunded'].includes(booking.payment?.status) ? 'completed' : 'none');
   const adults = booking.guests?.adults || 1;
   const children = booking.guests?.children || 0;
   const totalGuests = adults + children;
@@ -175,7 +176,11 @@ export default function BookingConfirmationPage() {
               ? 'Your booking is confirmed and ready for your stay.'
               : holdIsActive
                 ? `Your room is temporarily locked until ${new Date(booking.holdExpiresAt).toLocaleString()}.`
-                : booking.cancellationReason || 'This booking is no longer holding inventory.'}
+                : refundStatus === 'initiated'
+                  ? 'Your booking was cancelled and the refund has been started. The final refund update will appear here once it completes.'
+                  : refundStatus === 'completed'
+                    ? 'Your booking was cancelled and the refund has been completed successfully.'
+                  : booking.cancellationReason || 'This booking is no longer holding inventory.'}
           </p>
           <div className={styles.heroActions}>
             <button type="button" onClick={handleDownloadReceipt} disabled={downloadingReceipt} className={styles.secondaryBtn}>
@@ -290,6 +295,9 @@ export default function BookingConfirmationPage() {
               )}
               {booking.refundAmount > 0 && (
                 <div className={styles.detailRow}><span>Refund</span><strong className={styles.discountText}>{formatCurrency(booking.refundAmount)}</strong></div>
+              )}
+              {refundStatus !== 'none' && (
+                <div className={styles.detailRow}><span>Refund status</span><strong>{refundStatus === 'initiated' ? 'Initiated' : 'Completed'}</strong></div>
               )}
             </div>
             <div className={styles.totalRow}>

@@ -1,6 +1,8 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-export const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID;
-export const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+import { PUBLIC_CONFIG } from './runtimeConfig';
+
+export const API_URL = PUBLIC_CONFIG.apiUrl;
+export const RAZORPAY_KEY = PUBLIC_CONFIG.razorpayKey;
+export const GOOGLE_MAPS_KEY = PUBLIC_CONFIG.googleMapsKey;
 export const normalizeRole = (role) => {
   if (role === 'owner' || role === 'superadmin') {
     return 'admin';

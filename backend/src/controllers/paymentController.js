@@ -333,7 +333,18 @@ const initiateRefund = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Payment has not been completed');
   }
 
-  const amount = req.body.amount || booking.refundAmount || booking.pricing.totalPrice;
+  if (booking.payment.refundId || ['partial_refunded', 'refunded'].includes(booking.payment.status)) {
+    throw new ApiError(400, 'A refund has already been initiated for this booking');
+  }
+
+  const amount = Number(req.body.amount ?? booking.refundAmount ?? booking.pricing.totalPrice);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError(400, 'Refund amount must be a valid number greater than zero');
+  }
+
+  if (amount > booking.pricing.totalPrice) {
+    throw new ApiError(400, 'Refund amount cannot exceed the booking total');
+  }
 
   if (booking.payment.method !== 'razorpay') {
     throw new ApiError(400, 'Only Razorpay refunds are supported');
@@ -344,6 +355,7 @@ const initiateRefund = asyncHandler(async (req, res) => {
   booking.payment.status = amount < booking.pricing.totalPrice ? 'partial_refunded' : 'refunded';
   booking.payment.refundId = refundResult.refundId;
   booking.payment.refundedAt = new Date();
+  booking.payment.refundStatus = 'completed';
   booking.refundAmount = amount;
   await booking.save();
   await syncBookingToSql(booking);
@@ -368,7 +380,7 @@ const initiateRefund = asyncHandler(async (req, res) => {
   });
 
   res.status(200).json(
-    new ApiResponse(200, { refundResult, refundAmount: amount }, 'Refund initiated')
+    new ApiResponse(200, { refundResult, refundAmount: amount, refundStatus: booking.payment.refundStatus }, 'Refund completed')
   );
 });
 

@@ -27,8 +27,11 @@ export default function HotelListingPage() {
 
   useEffect(() => {
     const city = searchParams.get('city') || '';
-    if (city) dispatch(setFilters({ city }));
-  }, [searchParams]);
+    const search = searchParams.get('search') || '';
+    if (city || search) {
+      dispatch(setFilters({ city, search }));
+    }
+  }, [searchParams, dispatch]);
 
   useEffect(() => {
     setDraftFilters({
@@ -101,7 +104,7 @@ export default function HotelListingPage() {
             {isMobile && <button className={styles.closeFilters} onClick={() => setShowFilters(false)}><FiX /></button>}
             <div className={styles.filterGroup}>
               <h3>Search</h3>
-              <input type="text" placeholder="Hotel name..." value={draftFilters.search} onChange={e => handleDraftFilter('search', e.target.value)} className={styles.filterInput} />
+              <input type="text" placeholder="Hotel, city, or area..." value={draftFilters.search} onChange={e => handleDraftFilter('search', e.target.value)} className={styles.filterInput} />
             </div>
             <div className={styles.filterGroup}>
               <h3>City</h3>

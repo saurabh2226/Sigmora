@@ -14,6 +14,19 @@ const PORT = process.env.PORT || 5000;
 const AUTO_PORT_FALLBACK = process.env.AUTO_PORT_FALLBACK === 'true';
 let activePort = Number(PORT);
 
+const parseBoolean = (value, defaultValue = false) => {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+
+  return ['true', '1', 'yes', 'on'].includes(String(value).toLowerCase());
+};
+
+const resolveSqlSync = () => parseBoolean(
+  process.env.SQL_SCHEMA_SYNC,
+  process.env.NODE_ENV !== 'production'
+);
+
 // Create HTTP server
 const server = http.createServer(app);
 
@@ -27,8 +40,8 @@ const startServer = async () => {
     
     // Connect MySQL/Sequelize
     await connectSequelize({
-      syncSchema: process.env.SQL_SCHEMA_SYNC !== 'false',
-      alter: process.env.NODE_ENV !== 'production' && process.env.SQL_SCHEMA_ALTER !== 'false',
+      syncSchema: resolveSqlSync(),
+      alter: process.env.NODE_ENV !== 'production' && process.env.SQL_SCHEMA_ALTER === 'true',
     });
 
     await migrateLegacyRoles();

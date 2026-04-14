@@ -1,5 +1,6 @@
 const Hotel = require('../models/Hotel');
 const Room = require('../models/Room');
+const Booking = require('../models/Booking');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -9,6 +10,14 @@ const { isAdminRole } = require('../middleware/roles');
 const { attachOffersToHotels } = require('../utils/offerUtils');
 const { emitHotelCatalogUpdate, emitHotelDetailUpdate } = require('../socket/socketHandler');
 const { syncHotelToSql } = require('../services/sqlMirrorService');
+const { createNotification } = require('../services/notificationService');
+const { sendHotelDeletedEmail } = require('../services/emailService');
+
+const runSideEffect = (task) => {
+  Promise.resolve()
+    .then(task)
+    .catch(console.error);
+};
 
 // @desc    Get all hotels with filters, search, pagination
 // @route   GET /api/v1/hotels
@@ -20,9 +29,17 @@ const getHotels = asyncHandler(async (req, res) => {
 
   const query = { isActive: true };
 
-  // Search by text
+  // Flexible search by hotel name, city, state, type, or description
   if (search) {
-    query.$text = { $search: search };
+    const searchRegex = new RegExp(String(search).trim(), 'i');
+    query.$or = [
+      { title: searchRegex },
+      { description: searchRegex },
+      { type: searchRegex },
+      { 'address.city': searchRegex },
+      { 'address.state': searchRegex },
+      { 'address.street': searchRegex },
+    ];
   }
 
   // Filter by city
@@ -260,11 +277,66 @@ const deleteHotel = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Hotel not found');
   }
 
+  const impactedBookings = await Booking.find({
+    hotel: hotel._id,
+    status: { $in: ['pending', 'confirmed', 'checked-in'] },
+  }).populate('user', 'name email');
+
   hotel.isActive = false;
   await hotel.save();
   await syncHotelToSql(hotel);
   emitHotelCatalogUpdate({ action: 'deleted', hotelId: hotel._id });
   emitHotelDetailUpdate(hotel._id, { action: 'deleted' });
+
+  runSideEffect(async () => {
+    const hotelManager = hotel.createdBy
+      ? { _id: hotel.createdBy, name: req.user?.name || 'Admin', email: req.user?.email }
+      : null;
+
+    if (hotelManager?._id) {
+      await createNotification({
+        userId: hotelManager._id,
+        type: 'system',
+        title: 'Hotel listing deleted',
+        message: `${hotel.title} was removed from active listings.`,
+        link: '/admin/hotels',
+        metadata: { hotelId: hotel._id },
+      });
+    }
+
+    const uniqueUsers = new Map();
+    impactedBookings.forEach((booking) => {
+      if (booking.user?._id) {
+        uniqueUsers.set(String(booking.user._id), { booking, user: booking.user });
+      }
+    });
+
+    await Promise.all(Array.from(uniqueUsers.values()).map(async ({ booking, user }) => {
+      await createNotification({
+        userId: user._id,
+        type: 'system',
+        title: 'Hotel removed from Sigmora',
+        message: `${hotel.title} is no longer available on the platform.`,
+        link: '/dashboard',
+        metadata: { hotelId: hotel._id, bookingId: booking._id },
+      });
+
+      await sendHotelDeletedEmail({
+        recipient: user,
+        hotel,
+        booking,
+        roleLabel: 'guest',
+      });
+    }));
+
+    if (hotelManager?.email) {
+      await sendHotelDeletedEmail({
+        recipient: hotelManager,
+        hotel,
+        roleLabel: 'admin manager',
+      });
+    }
+  });
 
   res.status(200).json(
     new ApiResponse(200, null, 'Hotel deleted successfully')

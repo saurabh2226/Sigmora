@@ -641,6 +641,8 @@ export default function BookingPage() {
               <span>Stay</span>
               <span className={styles.summaryValueInline}><FiCalendar size={12} /> {nights > 0 ? `${nights} night${nights !== 1 ? 's' : ''}` : '—'}</span>
             </div>
+            <div className={styles.summaryRow}><span>Check-in time</span><span className={styles.summaryTextValue}>{stayDetails.hotel?.policies?.checkInTime || '14:00'}</span></div>
+            <div className={styles.summaryRow}><span>Check-out time</span><span className={styles.summaryTextValue}>{stayDetails.hotel?.policies?.checkOutTime || '11:00'}</span></div>
             <div className={styles.summaryRow}><span>Guests</span><span className={styles.summaryTextValue}>{form.adults} adult{form.adults > 1 ? 's' : ''}{form.children > 0 ? `, ${form.children} child${form.children > 1 ? 'ren' : ''}` : ''}</span></div>
             <div className={styles.summaryRow}><span>Base nightly rate</span><span className={styles.summaryTextValue}>{formatCurrency(stayDetails.room?.pricePerNight || 0)}</span></div>
             <div className={styles.summaryRow}><span>Live nightly rate</span><span className={styles.summaryTextValue}>{formatCurrency(livePricing?.nightlyRate || stayDetails.room?.pricePerNight || 0)}</span></div>
@@ -654,14 +656,6 @@ export default function BookingPage() {
               <div className={styles.dynamicNote}>
                 {livePricing.weekendNights > 0 && <span>{livePricing.weekendNights} weekend night{livePricing.weekendNights > 1 ? 's' : ''} at higher demand pricing.</span>}
                 {livePricing.holidayNights > 0 && <span>{livePricing.holidayNights} holiday night{livePricing.holidayNights > 1 ? 's' : ''} included in this quote.</span>}
-              </div>
-            )}
-
-            {stayDetails.roomAvailability && (
-              <div className={`${styles.summaryAvailability} ${stayDetails.roomAvailability.available ? styles.available : styles.unavailable}`}>
-                {stayDetails.roomAvailability.available
-                  ? `Live availability confirmed: ${stayDetails.roomAvailability.availableCount} room${stayDetails.roomAvailability.availableCount === 1 ? '' : 's'} left`
-                  : 'Selected room is unavailable for these dates'}
               </div>
             )}
 

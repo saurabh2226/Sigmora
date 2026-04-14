@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { FiMenu, FiX, FiSun, FiMoon, FiHeart, FiLogOut, FiGrid, FiMessageCircle, FiHome } from 'react-icons/fi';
+import { FiMenu, FiX, FiSun, FiMoon, FiHeart, FiLogOut, FiMessageCircle, FiHome, FiBell } from 'react-icons/fi';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../context/ThemeContext';
+import { useSocket } from '../../../context/SocketContext';
 import { logoutUser } from '../../../redux/slices/authSlice';
 import { ROLE_LABELS, normalizeRole } from '../../../utils/constants';
 import { getDashboardPathForRole } from '../../../utils/routeHelpers';
+import { getUnreadCount } from '../../../api/userApi';
 import ConfirmDialog from '../ConfirmDialog/ConfirmDialog';
 import styles from './Navbar.module.css';
 
@@ -14,8 +16,10 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const userMenuRef = useRef(null);
   const { user, isAuthenticated } = useAuth();
+  const socket = useSocket();
   const { theme, toggleTheme } = useTheme();
   const dispatch = useDispatch();
   const normalizedRole = normalizeRole(user?.role);
@@ -24,12 +28,24 @@ export default function Navbar() {
   const dashboardLabel = isAdmin ? 'Admin Panel' : 'My Bookings';
   const dashboardLink = getDashboardPathForRole(normalizedRole);
 
-  const navLinks = [
-    { to: '/', label: 'Home' },
-    { to: '/hotels', label: 'Hotels' },
-    { to: '/about', label: 'About' },
-    ...(isAuthenticated ? [{ to: '/support', label: 'Support' }] : []),
-  ];
+  const navLinks = isAdmin
+    ? [
+        { to: '/admin', label: 'Dashboard' },
+        { to: '/admin/community', label: 'Community' },
+        { to: '/admin/reports', label: 'Reports' },
+        { to: '/admin/hotels', label: 'Hotels' },
+        { to: '/admin/users', label: 'Users' },
+        { to: '/admin/bookings', label: 'Bookings' },
+        { to: '/admin/reviews', label: 'Reviews' },
+        { to: '/admin/offers', label: 'Offers' },
+        { to: '/support', label: 'Support' },
+      ]
+    : [
+        { to: '/', label: 'Home' },
+        { to: '/hotels', label: 'Hotels' },
+        { to: '/about', label: 'About' },
+        ...(isAuthenticated ? [{ to: '/support', label: 'Support' }] : []),
+      ];
 
   const handleNavClick = () => {
     setMobileOpen(false);
@@ -73,6 +89,45 @@ export default function Navbar() {
     };
   }, [dropdownOpen]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      setUnreadCount(0);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const refreshUnreadCount = async () => {
+      try {
+        const { data } = await getUnreadCount();
+        if (!cancelled) {
+          setUnreadCount(data.data.count || 0);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setUnreadCount(0);
+        }
+      }
+    };
+
+    refreshUnreadCount();
+
+    if (!socket) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    socket.on('notification:new', refreshUnreadCount);
+    socket.on('support:updated', refreshUnreadCount);
+
+    return () => {
+      cancelled = true;
+      socket.off('notification:new', refreshUnreadCount);
+      socket.off('support:updated', refreshUnreadCount);
+    };
+  }, [isAuthenticated, isAdmin, socket]);
+
   return (
     <>
       <nav className={styles.navbar}>
@@ -101,6 +156,13 @@ export default function Navbar() {
             {theme === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
           </button>
 
+          {isAuthenticated && isAdmin && (
+            <Link to="/support" className={styles.notificationBtn} onClick={handleNavClick} aria-label="Admin notifications">
+              <FiBell size={18} />
+              {unreadCount > 0 && <span className={styles.notificationBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+            </Link>
+          )}
+
           {isAuthenticated ? (
             <div className={styles.userMenu} ref={userMenuRef}>
               <button
@@ -128,9 +190,9 @@ export default function Navbar() {
                   <Link to={dashboardLink} className={styles.dropdownItem} onClick={handleNavClick}><FiHome size={16} /> {dashboardLabel}</Link>
                   <Link to="/support" className={styles.dropdownItem} onClick={handleNavClick}><FiMessageCircle size={16} /> Support Chat</Link>
                   <Link to="/wishlist" className={styles.dropdownItem} onClick={handleNavClick}><FiHeart size={16} /> Wishlist</Link>
-                  {isAdmin && (
+                  {/* {isAdmin && (
                     <Link to="/admin" className={styles.dropdownItem} onClick={handleNavClick}><FiGrid size={16} /> Admin Panel</Link>
-                  )}
+                  )} */}
                   <div className={styles.dropdownDivider} />
                   <button
                     className={styles.dropdownItem}

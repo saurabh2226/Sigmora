@@ -9,7 +9,10 @@ const { syncAllMongoDataToSql } = require('../services/sqlMirrorService');
 const seedSqlFromMongo = async () => {
   try {
     await connectDB();
-    await connectSequelize({ syncSchema: true, alter: true });
+    await connectSequelize({
+      syncSchema: process.env.SQL_SCHEMA_SYNC !== 'false',
+      alter: process.env.SQL_SCHEMA_ALTER === 'true',
+    });
 
     const counts = await syncAllMongoDataToSql();
 
