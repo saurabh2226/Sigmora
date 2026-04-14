@@ -16,7 +16,7 @@ const readConfig = (key, fallback = '') => {
 };
 
 export const PUBLIC_CONFIG = {
-  apiUrl: readConfig('VITE_API_URL', 'http://localhost:5000/api/v1'),
+apiUrl: readConfig('VITE_API_URL', 'https://sigmora.onrender.com/api/v1'),
   razorpayKey: readConfig('VITE_RAZORPAY_KEY_ID', ''),
   googleMapsKey: readConfig('VITE_GOOGLE_MAPS_KEY', readConfig('VITE_GOOGLE_MAPS_API_KEY', '')),
 };
